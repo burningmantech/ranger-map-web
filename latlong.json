@@ -1,0 +1,5 @@
+[
+{"event":"2018","number":"1","state":"open","type":"Law Enforcement","lat":"40.783","long":"-119.2"},
+{"event":"2018","number":"2","state":"open","type":"Fire","lat":"40.7865","long":"-119.2064"},
+{"event":"2018","number":"3","state":"closed","type":"Test (3:00 2000 ft)", "lat":"40.782628", "long":"-119.201286"}
+]

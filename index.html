@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<head>
+ <link rel="stylesheet" href="leaflet.css" />
+</head>
+
+ <!-- Make sure you put this AFTER Leaflet's CSS -->
+ <script src="leaflet.js" ></script>
+
+<body>
+<h1>Hello world.</h1>
+
+<div id="mapid" style="height: 2000px;"></div>
+
+<script>
+
+var mymap = L.map('mapid').setView([40.7, -119.2], 13);
+
+L.tileLayer('http://192.168.56.103/tileserver-php/tileserver.php?/index.json?/brc2019/{z}/{x}/{y}.png', {
+    attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+    maxZoom: 19,
+}).addTo(mymap);
+
+var marker = L.marker([40.78597, -119.2059]).addTo(mymap);
+marker.bindPopup("<b>The Man</b>").openPopup();
+
+
+function getIncidents() {
+    request.open('GET', requestURL);
+    request.responseType = 'json';
+    request.onload = function() {
+      var incidents = request.response;
+      for (var i = 0; i < incidents.length; i++) {
+        var x = incidents[i];
+        if (x.state != 'open') {
+//            continue;
+        }
+        if (x.location.type != 'garett') {
+            continue;
+        }
+        if (x.location.concentric == null) {
+            continue;
+        }
+        if (x.location.radial_hour == null) {
+            continue;
+        }
+console.log(x.location);
+        street = imsStreetCodeToName(x.location.concentric);
+console.log(x.location.radial_hour + ":" + x.location.radial_minute);
+        var hourMinute = imsHourMinuteToString(x.location.radial_hour,
+                x.location.radial_minute);
+        var ll = latLongGarrett(2019, hourMinute, street);
+        markers[i] = L.marker(ll).addTo(mymap);
+        markers[i].bindPopup('<b><a href=\'https://ranger-ims.nv.burningman.org/ims/app/events/2019/incidents/' + incidents[i].number + '\' target=\'_blank\'>IMS #' + incidents[i].number + '</a></b><br>' + incidents[i].summary).openPopup();
+console.log(incidents[i].number + ":" + ll);
+     }
+    }
+    request.send();
+}
+
+function imsHourMinuteToString(hour, minute) {
+    return hour + ":" + minute;
+}
+
+var markers = [];
+// var requestURL = 'http://192.168.56.103/leaflet/latlong.php';
+//var requestURL = 'http://192.168.56.103/leaflet/ims2019.json';
+//var requestURL = 'http://192.168.56.103/leaflet/latlong.json';
+var requestURL = 'https://ranger-ims.nv.burningman.org/ims/api/events/2019/incidents/';
+var request = new XMLHttpRequest();
+
+getIncidents();
+
+
+//setInterval(getIncidents, 5000);
+
+// Hour in 0-12 as float, distance in feet
+function latLongFromReferencePoint(refLat, refLong, hour, distance) {
+    // 24901 = circum of earth in miles
+    var feetPerDegreeLat = 24901*5280/360;
+    var feetPerDegreeLong = feetPerDegreeLat *
+                Math.cos(refLat * 2 * 3.14159 / 360.0);
+    var newHour = 3 - hour;
+    if (newHour < 0) {
+        newHour += 12;
+    }
+    var angle = 30 * newHour - 45;
+    var radians = angle * 2 * 3.14159 / 360.0;
+    var xFeet = distance * Math.cos(radians);
+    var yFeet = distance * Math.sin(radians);
+
+    console.log("xfeet");
+    console.log(xFeet);
+    console.log("yfeet");
+    console.log(yFeet);
+
+    var lat = refLat + yFeet / feetPerDegreeLat;
+    var long = refLong + xFeet / feetPerDegreeLong;
+
+console.log("lat");
+console.log(lat);
+console.log("long");
+console.log(long);
+
+    return({lat: lat, lng: long});
+}
+
+function latLongFromManDistance(year, hourFloat, distance) {
+// 2018:
+//    var manLat = 40.7865;       // aprox
+//    var manLong = -119.2064;    // aprox
+// 2019:
+    var manLat = 40.78597;
+    var manLong = -119.2059;
+
+    return latLongFromReferencePoint(manLat, manLong, hourFloat, distance);
+}
+
+function latLongGarrett(year, hourString, street) {
+    var hf = hourMinuteToHourFloat(hourString);
+    var dist = streetDistanceFromMan(year, street);
+
+    return latLongFromManDistance(year, hf, dist);
+}
+
+// 
+function streetDistanceFromMan(year, street) {
+    var distances = {
+        'esplanade': 2500,
+        'a': 2940,
+        'b': 3230,
+        'c': 3520,
+        'd': 3810,
+        'e': 4100,
+        'f': 4340,
+        'g': 4580,
+        'h': 4820,
+        'i': 5060,
+        'j': 5300,
+        'k': 5490,
+        'l': 5680
+    }
+    return distances[street.toLowerCase()];
+}
+
+function imsStreetCodeToName(street) {
+    var codesToNames = {
+        0: 'esplanade',
+        1: 'a',
+        2: 'b',
+        3: 'c',
+        4: 'd',
+        5: 'e',
+        6: 'f',
+        7: 'g',
+        8: 'h',
+        9: 'i',
+        10: 'j',
+        11: 'k',
+        12: 'l'
+    }
+    return codesToNames[street];
+}
+
+function hourMinuteToHourFloat(hourMinute) {
+    var h = hourMinute.trim();
+    if (h.indexOf(':') < 0) {
+        return parseFloat(h);
+    }
+    var s = h.split(':');
+    return parseFloat(s[0]) + parseFloat(s[1])/60.0;
+}
+
+function splitGarrettAddress(s) {
+}
+
+function testMarker(hourFloat, street) {
+    var distance = streetDistanceFromMan(2019, street);
+    var ll = latLongFromMan(2019, hourFloat, distance);
+    console.log("latlong");
+    console.log(ll);
+
+    var x = L.marker(ll).addTo(mymap);
+    x.bindPopup("<b>IMS #99990</b><br>Crow peed on a tire").openPopup();
+}
+
+</script>
+
+
+</body>
+</html>
